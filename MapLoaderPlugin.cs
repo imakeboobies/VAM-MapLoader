@@ -78,11 +78,13 @@ namespace VAM_MapLoader
                 AssetBundle ab = AssetBundle.LoadFromFile(path);
                 if (ab != null)
                 {
-                    foreach (string asb in ab.GetAllScenePaths())
+                    if(ab.GetAllScenePaths().Length > 0)
                     {
+                        string asb = ab.GetAllScenePaths()[0];
                         UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(asb, UnityEngine.SceneManagement.LoadSceneMode.Additive);
                         currentLoadedScene = asb;
                         sceneLoaded = true;
+                    
                     }
                 }
 
