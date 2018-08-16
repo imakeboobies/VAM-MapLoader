@@ -98,7 +98,7 @@ namespace VAM_MapLoader
 
         private void onMapLoadComplete(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
-            if(scene.name.Equals(currentLoadedScene))
+            if(scene.path.Equals(currentLoadedScene))
             {
                 fixLightsInScene();
             }
