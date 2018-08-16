@@ -1,6 +1,6 @@
 ﻿using IllusionPlugin;
 using UnityEngine;
-using System.IO;
+using System.Collections.Generic;
 using UnityEngine.UI;
 using System;
 
@@ -13,6 +13,8 @@ namespace VAM_MapLoader
         bool sceneLoaded = false;
         string currentLoadedScene = "";
         string defaultLoadPath;
+     
+        Dictionary<string, AssetBundle> bundles = new Dictionary<string, AssetBundle>();
 
         public string Name
         {
@@ -70,17 +72,32 @@ namespace VAM_MapLoader
             try
             {
 
-                if (sceneLoaded && currentLoadedScene.Length>0)
+                try
                 {
-                    UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene);
+                    if (sceneLoaded && currentLoadedScene.Length > 0)
+                    {                        
+                        UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene);
+                    }
+                }
+                catch (Exception e)
+                {
+                    //this is a horrible way of handling logic flow but unity doesn't expose anything to tell you what scenes are currently loaded. Might be able to re-work this with unloadscene.
                 }
 
-                AssetBundle ab = AssetBundle.LoadFromFile(path);
+                    AssetBundle ab;
+                if (bundles.ContainsKey(path))
+                    ab = bundles[path];
+                else
+                { 
+                    ab = AssetBundle.LoadFromFile(path);
+                    bundles.Add(path, ab);
+                }
+
                 if (ab != null)
                 {
                     if(ab.GetAllScenePaths().Length > 0)
                     {
-                        string asb = ab.GetAllScenePaths()[0];
+                        string asb = ab.GetAllScenePaths()[0];                      
                         UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(asb, UnityEngine.SceneManagement.LoadSceneMode.Additive);
                         currentLoadedScene = asb;
                         sceneLoaded = true;
@@ -110,7 +127,7 @@ namespace VAM_MapLoader
         public void OnLevelWasLoaded(int level)
         {
             //Make sure we're in the main VAM scenes
-            if (level == 1 || level == 6)
+            if ((level == 1 || level == 6))
             {
 
                 //Get existing UI components.
@@ -161,7 +178,7 @@ namespace VAM_MapLoader
                 //set default path to find scenes.
                 string path = Application.dataPath;
                 int lt = path.LastIndexOf("/");
-                defaultLoadPath = path.Substring(0, lt);                
+                defaultLoadPath = path.Substring(0, lt);
             }
         }
 
