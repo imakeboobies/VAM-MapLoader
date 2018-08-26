@@ -9,7 +9,7 @@ Simply extract the mod rar file into your VAM directory. Drag VAM.exe onto IPA.e
 
 <b>Configuration</b> 
 
-The mod needs to know where to look for map files and of what type. Within your VAM directory you will have a MapLoaderConfig.json. Open this file and edit the directory for additional files. You can have more than 1 directory per type of map. The map type options are; Unity, PlayHome, Koikatu. The config IS case sensitive.  Koikatu is not yet full implemented.
+The mod needs to know where to look for map files and of what type. Within your VAM directory you will have a MapLoaderConfig.json. Open this file and edit the directory for additional files. You can have more than 1 directory per type of map. The map type options are; Unity, PlayHome, Koikatu. The config IS case sensitive. Directory listings require two back slashes as a seperator (\\).  Koikatu is not yet full implemented.
 
 
 <b>Usage</b> 
