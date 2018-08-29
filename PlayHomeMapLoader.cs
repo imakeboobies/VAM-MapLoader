@@ -10,6 +10,11 @@ namespace VAM_MapLoader
         static string MAPKEY = "PlayHome";
         GameObject currentMapBase;
 
+        public void init()
+        {
+
+        }
+
         public string Mapkey()
         {
             return MAPKEY;
@@ -62,6 +67,19 @@ namespace VAM_MapLoader
                             mx.shader = Shader.Find("Standard");
                     }
                 }
+
+                ParticleSystemRenderer[] psx = currentMapBase.GetComponentsInChildren<ParticleSystemRenderer>();
+                foreach (ParticleSystemRenderer at in psx)
+                {
+                    foreach (Material mx in at.sharedMaterials)
+                    {
+                        if (Shader.Find(mx.shader.name) != null)
+                            mx.shader = Shader.Find(mx.shader.name);
+                        else
+                            mx.shader = Shader.Find("Standard");
+                    }
+                }
+
             }
 
             return mapName;

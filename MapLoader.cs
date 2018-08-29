@@ -8,6 +8,7 @@ namespace VAM_MapLoader
     interface MapLoader
     {
         string Mapkey();
+        void init();
         string loadMap(string mapName);
         void unloadMap(string currentLoadedScene);
         List<string> getAvailableMaps(Dictionary<string, List<string>> configDirectories);

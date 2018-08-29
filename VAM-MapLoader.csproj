@@ -53,6 +53,10 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>

@@ -11,6 +11,11 @@ namespace VAM_MapLoader
     {
         public static string MAPKEY = "Unity";
 
+        public void init()
+        {
+
+        }
+
         public string Mapkey()
         {
             return MAPKEY;
@@ -39,7 +44,7 @@ namespace VAM_MapLoader
                 if (ab.GetAllScenePaths().Length > 0)
                 {
                     sceneName = ab.GetAllScenePaths()[0];
-                    UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
                 }
 
             }

@@ -12,9 +12,9 @@ namespace VAM_MapLoader
     class MapLoaderPlugin : IPlugin
     {
       
-        bool sceneLoaded = false;
+     //   bool sceneLoaded = false;
         string currentLoadedScene = "";
-        string defaultLoadPath;
+     //   string defaultLoadPath;
         MapLoader currentLoader;
 
         public static Dictionary<string, AssetBundle> bundles = new Dictionary<string, AssetBundle>();
@@ -71,9 +71,15 @@ namespace VAM_MapLoader
  
             foreach (Type mytype in AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(myType => myType.IsClass && !myType.IsAbstract && myType.GetInterfaces().Contains(typeof(MapLoader))))
             {
-                MapLoader mapLoaderImpl = (MapLoader)Activator.CreateInstance(mytype);
-                loaders.Add(mapLoaderImpl.Mapkey(), mapLoaderImpl);
-            }
+                try
+                {
+                    MapLoader mapLoaderImpl = (MapLoader)Activator.CreateInstance(mytype);                
+                    mapLoaderImpl.init();
+                    loaders.Add(mapLoaderImpl.Mapkey(), mapLoaderImpl);
+                }
+                catch (Exception ex) {
+                    SuperController.LogError("Failed to initialise map loader: "+mytype); }
+                }
 
             foreach (KeyValuePair<string, List<string>> cfKey in configDirectories)
             {
@@ -120,9 +126,23 @@ namespace VAM_MapLoader
             if ((level == 1 || level == 6))
             {
 
+                Transform buttonPrefab = getTransformByNameAndRoot("Quit Button", SuperController.singleton.mainMenuUI);
+                Transform HRButtonPrefab = getTransformByNameAndRoot("Hard Reset Button", SuperController.singleton.mainMenuUI);
 
+                Button mapLoadButtonUI = createMenuButton("Load External Map");
+                Button unloadButtonUI = createMenuButton("Unload External Map");
 
-                Button mapLoadButtonUI = createMenuButton();
+                RectTransform buttonPrefabRT = buttonPrefab.GetComponent<RectTransform>();
+                RectTransform hardResetRT = HRButtonPrefab.GetComponent<RectTransform>();
+                RectTransform mapButtonRT = mapLoadButtonUI.gameObject.GetComponent<RectTransform>();
+                RectTransform unloadButtonRT = unloadButtonUI.gameObject.GetComponent<RectTransform>();
+
+                //Adjust position of buttons to fit into menu.
+                hardResetRT.anchoredPosition = new Vector2(hardResetRT.anchoredPosition.x, hardResetRT.anchoredPosition.y + 40f);
+                buttonPrefabRT.anchoredPosition = new Vector2(buttonPrefabRT.anchoredPosition.x, buttonPrefabRT.anchoredPosition.y - 40f);
+                mapButtonRT.anchoredPosition = new Vector2(mapButtonRT.anchoredPosition.x, mapButtonRT.anchoredPosition.y + mapButtonRT.rect.height+40f);
+                unloadButtonRT.anchoredPosition = new Vector2(unloadButtonRT.anchoredPosition.x, unloadButtonRT.anchoredPosition.y+30f);
+
                 ScrollRect scrollRect = createMapScrollRect();
                 GameObject mapLoadPanelGO = scrollRect.gameObject;
                 Scrollbar scrollBarMB = createScrollBar(mapLoadPanelGO);
@@ -133,10 +153,21 @@ namespace VAM_MapLoader
 
                 mapLoadButtonUI.onClick.AddListener(() =>
                 {
-                    if (mapLoadPanelGO.active)
+                    if (mapLoadPanelGO.activeSelf)
                         mapLoadPanelGO.SetActive(false);
                     else
                         mapLoadPanelGO.SetActive(true);
+                });
+
+
+                unloadButtonUI.onClick.AddListener(() =>
+                {
+                    if(currentLoader!=null && currentLoadedScene.Length>0)
+                    { 
+                        currentLoader.unloadMap(currentLoadedScene);
+                        currentLoader = null;
+                        currentLoadedScene = "";
+                    }
                 });
 
                 GameObject mapLoadContentGO = mapLoadPanelGO.GetComponent<ScrollRect>().content.gameObject;
@@ -328,7 +359,7 @@ namespace VAM_MapLoader
             mapLoadContentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 0f);
             scrollRect.horizontal = false;
 
-            scrollRect.movementType = ScrollRect.MovementType.Unrestricted;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
             scrollRect.viewport = mapLoadViewPortGO.GetComponent<RectTransform>();
             scrollRect.content = mapLoadContentGO.GetComponent<RectTransform>();
 
@@ -337,7 +368,9 @@ namespace VAM_MapLoader
             return scrollRect;
         }
 
-        Button createMenuButton()
+
+
+        Button createMenuButton(string text)
         {
 
             //Get existing UI components.
@@ -358,16 +391,14 @@ namespace VAM_MapLoader
             UIStyleButton mplbStyle = mapLoadButtonGO.AddComponent<UIStyleButton>();
             UIStyleImage mpliStyle = mapLoadButtonGO.AddComponent<UIStyleImage>();
             RectTransform mapButtonRT = mapLoadButtonGO.GetComponent<RectTransform>();
+
             //Copy values from existing components.
             CopyImageValues(imagePrefab, mapLoadButtonImage);
             mplbStyle.styleName = style;
             mpliStyle.styleName = style;
             CopyRectTransformValues(buttonPrefabRT, mapButtonRT);
 
-            //Adjust position of button to fit into menu.
-            buttonPrefabRT.anchoredPosition = new Vector2(buttonPrefabRT.anchoredPosition.x, buttonPrefabRT.anchoredPosition.y - 40f);
-            mapButtonRT.anchoredPosition = new Vector2(mapButtonRT.anchoredPosition.x, mapButtonRT.anchoredPosition.y + mapButtonRT.rect.height);
-
+  
             //Create new gameobject and ui for button text
             GameObject mapLoadTextGO = new GameObject("MapLoadText");
             mapLoadTextGO.transform.localScale = textPrefab.localScale;
@@ -383,7 +414,7 @@ namespace VAM_MapLoader
 
 
             //Update new components with adjusted values.
-            mapLoadText.text = "Load External Map";
+            mapLoadText.text = text;
             return mapLoadButtonUI;
         }
 
