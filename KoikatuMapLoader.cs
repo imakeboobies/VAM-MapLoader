@@ -3,65 +3,74 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
 
 namespace VAM_MapLoader
 {
     class KoikatuMapLoader : MapLoader
     {
+        
+
+
         static string MAPKEY = "Koikatu";
         AssetBundle shaders;
-       
+        Dictionary<string, Shader> additionalShaders;
+
         public void init()
         {
-            SceneManager.sceneLoaded += SceneManager_sceneLoaded;
 
+            additionalShaders = new Dictionary<string, Shader>();
+         /* XXX This should work to add shaders, but it doesnt. GG unity!
+            if (shaders == null)
+                shaders = AssetBundle.LoadFromFile("Shaders\\koikatu.shaders");
+
+            
+                        
+            Shader[] shs = shaders.LoadAllAssets<Shader>();
+
+            foreach (Shader sh in shs)
+            {
+                Shader shIn = Shader.Instantiate<Shader>(sh);                               
+                additionalShaders.Add(shIn.name, shIn);
+            }*/
         }
+
 
         public string Mapkey()
         {
             return MAPKEY;
         }
 
-        public string loadMap(string mapName)
+        public AvailableMap loadMap(AvailableMap mapName)
         {
-       
-            AssetBundle ab = null;
+
+            AssetBundle ab = MapLoaderPlugin.getBundle(mapName.fileName);
             string sceneName = "";
-            try
-            {
-                if (MapLoaderPlugin.bundles.ContainsKey(mapName))
-                    ab = MapLoaderPlugin.bundles[mapName];
-                else
-                {
-                    ab = AssetBundle.LoadFromFile(mapName);
-                    MapLoaderPlugin.bundles.Add(mapName, ab);
-                }
-            }
-
-            catch (Exception ex) { }
-
+            mapName.parameters = new List<string>();
             if (ab != null)
             {
 
                 if (ab.GetAllScenePaths().Length > 0)
                 {
                     sceneName = ab.GetAllScenePaths()[0];
-                    UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);                    
+                    UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
                 }
 
             }
 
-            return sceneName;
+            mapName.parameters.Add(sceneName);
+            return mapName;
         }
 
-        public void unloadMap(string currentLoadedScene)
+        public void unloadMap(AvailableMap currentLoadedScene)
         {
-            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene);
+            if(currentLoadedScene.parameters.Count>0)
+              UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene.parameters[0]);
         }
 
-        public List<string> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
+        public List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
         {
-            List<string> availableMaps = new List<string>();
+            List<AvailableMap> availableMaps = new List<AvailableMap>();
 
             if (configDirectories.ContainsKey(MAPKEY))
             {
@@ -69,10 +78,10 @@ namespace VAM_MapLoader
                 foreach (string directory in configDirectories[MAPKEY])
                 {
                     string[] files = Directory.GetFiles(directory, "*.unity3d");
-                   
+
                     foreach (string file in files)
                     {
-                        availableMaps.Add(file);
+                        availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
                     }
                 }
             }
@@ -80,12 +89,13 @@ namespace VAM_MapLoader
             return availableMaps;
         }
 
-        private void SceneManager_sceneLoaded(Scene arg0, LoadSceneMode arg1)
+        public void onSceneLoaded(Scene arg0, LoadSceneMode arg1)
         {
+
             GameObject[] rootObjs = arg0.GetRootGameObjects();
 
             foreach (GameObject currentMapBase in rootObjs)
-            {             
+            {
                 MeshRenderer[] tt = currentMapBase.GetComponentsInChildren<MeshRenderer>();
                 foreach (MeshRenderer at in tt)
                 {
@@ -96,6 +106,8 @@ namespace VAM_MapLoader
                         {
                             if (Shader.Find(mx.shader.name) != null)
                                 mx.shader = Shader.Find(mx.shader.name);
+                            else if (additionalShaders.ContainsKey(mx.shader.name))
+                                mx.shader = additionalShaders[mx.shader.name];
                             else
                                 mx.shader = Shader.Find("Standard");
                         }
@@ -114,6 +126,8 @@ namespace VAM_MapLoader
                         {
                             if (Shader.Find(mx.shader.name) != null)
                                 mx.shader = Shader.Find(mx.shader.name);
+                            else if (additionalShaders.ContainsKey(mx.shader.name))
+                                mx.shader = additionalShaders[mx.shader.name];
                             else
                                 mx.shader = Shader.Find("Standard");
                         }
@@ -132,6 +146,8 @@ namespace VAM_MapLoader
                         {
                             if (Shader.Find(mx.shader.name) != null)
                                 mx.shader = Shader.Find(mx.shader.name);
+                            else if (additionalShaders.ContainsKey(mx.shader.name))
+                                mx.shader = additionalShaders[mx.shader.name];
                             else
                                 mx.shader = Shader.Find("Standard");
                         }
@@ -150,8 +166,12 @@ namespace VAM_MapLoader
                         {
                             if (Shader.Find(mx.shader.name) != null)
                                 mx.shader = Shader.Find(mx.shader.name);
+                            else if (additionalShaders.ContainsKey(mx.shader.name))
+                                mx.shader = additionalShaders[mx.shader.name];
                             else
-                                mx.shader = Shader.Find("Standard");
+                                mx.shader = Shader.Find("Particles/Additive");
+                   
+
                         }
 
                     }

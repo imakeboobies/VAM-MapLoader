@@ -21,45 +21,35 @@ namespace VAM_MapLoader
             return MAPKEY;
         }
 
-        public string loadMap(string mapName)
+        public AvailableMap loadMap(AvailableMap mapName)
         {
-            AssetBundle ab = null;
+            AssetBundle ab = MapLoaderPlugin.getBundle(mapName.fileName);
+
             string sceneName = "";
-            try
-            {
-                if (MapLoaderPlugin.bundles.ContainsKey(mapName))
-                    ab = MapLoaderPlugin.bundles[mapName];
-                else
-                {
-                    ab = AssetBundle.LoadFromFile(mapName);
-                    MapLoaderPlugin.bundles.Add(mapName, ab);
-                }
-            }
-
-            catch (Exception ex) { }
-
+            mapName.parameters = new List<string>();
             if (ab != null)
             {
-
                 if (ab.GetAllScenePaths().Length > 0)
                 {
                     sceneName = ab.GetAllScenePaths()[0];
-                    UnityEngine.SceneManagement.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
+                    UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Additive);
                 }
 
             }
+            mapName.parameters.Add(sceneName);
 
-            return sceneName;
+            return mapName;
         }
 
-        public void unloadMap(string currentLoadedScene)
+        public void unloadMap(AvailableMap currentLoadedScene)
         {
-            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene);
+            if (currentLoadedScene.parameters.Count > 0)
+                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene.parameters[0]);
         }
 
-        public List<string> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
+        public List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
         {
-            List<string> availableMaps = new List<string>();            
+            List<AvailableMap> availableMaps = new List<AvailableMap>();            
 
             if (configDirectories.ContainsKey(MAPKEY))
             {
@@ -70,12 +60,14 @@ namespace VAM_MapLoader
                         string[] files = Directory.GetFiles(Path.GetFullPath(directory), "*.scene");
                         foreach (string file in files)
                         {
-                            availableMaps.Add(file);
+                            availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
                         }
                     }
                 }
             }
             return availableMaps;
         }
+
+        public void onSceneLoaded(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.LoadSceneMode arg1) { }
     }
 }

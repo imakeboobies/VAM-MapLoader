@@ -57,6 +57,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.SubstanceModule">
+      <HintPath>..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.SubstanceModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\Games\VaM_Release1.9\VaM\VaM_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
@@ -69,6 +72,7 @@
   <ItemGroup>
     <Compile Include="MapLoader.cs" />
     <Compile Include="MapLoaderPlugin.cs" />
+    <Compile Include="HoneySelectMapLoader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PlayHomeMapLoader.cs" />
     <Compile Include="KoikatuMapLoader.cs" />

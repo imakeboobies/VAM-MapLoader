@@ -20,21 +20,9 @@ namespace VAM_MapLoader
             return MAPKEY;
         }
 
-        public string loadMap(string mapName)
+        public AvailableMap loadMap(AvailableMap mapName)
         {
-            AssetBundle asb = null;
-            try
-            {
-                if (MapLoaderPlugin.bundles.ContainsKey(mapName))
-                    asb = MapLoaderPlugin.bundles[mapName];
-                else
-                {
-                    asb = AssetBundle.LoadFromFile(mapName);
-                    MapLoaderPlugin.bundles.Add(mapName, asb);
-                }
-            }
-            catch (Exception ex) { }
-            
+            AssetBundle asb = MapLoaderPlugin.getBundle(mapName.fileName);
 
             if (asb != null && asb.GetAllAssetNames().Length > 0)
             {
@@ -76,7 +64,7 @@ namespace VAM_MapLoader
                         if (Shader.Find(mx.shader.name) != null)
                             mx.shader = Shader.Find(mx.shader.name);
                         else
-                            mx.shader = Shader.Find("Standard");
+                            mx.shader = Shader.Find("Particles/Additive");
                     }
                 }
 
@@ -85,7 +73,7 @@ namespace VAM_MapLoader
             return mapName;
         }
 
-        public void unloadMap(string currentLoadedScene)
+        public void unloadMap(AvailableMap currentLoadedScene)
         {
             if (currentMapBase != null)
             {
@@ -93,9 +81,9 @@ namespace VAM_MapLoader
             }
         }
 
-        public List<string> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
+        public List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
         {
-            List<string> availableMaps = new List<string>();
+            List<AvailableMap> availableMaps = new List<AvailableMap>();
 
             if (configDirectories.ContainsKey(MAPKEY))
             {
@@ -111,7 +99,7 @@ namespace VAM_MapLoader
 
                             if (extension.Length == 0)
                             {
-                                availableMaps.Add(file);
+                                availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
                             }
 
                         }
@@ -121,5 +109,8 @@ namespace VAM_MapLoader
 
             return availableMaps;
         }
+
+        public void onSceneLoaded(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.LoadSceneMode arg1) { }
+
     }
 }

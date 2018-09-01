@@ -9,18 +9,34 @@ using SimpleJSON;
 
 namespace VAM_MapLoader
 {
+    public class AvailableMap
+    {
+        public string fileName;
+        public string displayName;
+        public List<string> parameters;
+
+        public AvailableMap(string fileName_, string displayName_) : this(fileName_, displayName_, new List<string>())
+        {
+            
+        }
+
+        public AvailableMap(string fileName_, string displayName_, List<string> parameters_)
+        {
+            fileName = fileName_;
+            displayName = displayName_;
+            parameters = parameters_;
+        }
+    }
+
     class MapLoaderPlugin : IPlugin
     {
-      
-     //   bool sceneLoaded = false;
-        string currentLoadedScene = "";
-     //   string defaultLoadPath;
+
+        AvailableMap currentLoadedScene;// = "";        
         MapLoader currentLoader;
 
         public static Dictionary<string, AssetBundle> bundles = new Dictionary<string, AssetBundle>();
         Dictionary<string, MapLoader> loaders;
-        Dictionary<string, MapLoader> availableMaps;
-        //List<string> availableMaps;
+        Dictionary<AvailableMap, MapLoader> availableMaps;
 
         public string Name
         {
@@ -34,7 +50,7 @@ namespace VAM_MapLoader
         {
             get
             {
-                return "1.2";
+                return "1.2.2";
             }
         }
 
@@ -65,7 +81,7 @@ namespace VAM_MapLoader
         public void OnApplicationStart()
         {
             loaders = new Dictionary<string, MapLoader>();
-            availableMaps = new Dictionary<string, MapLoader>();
+            availableMaps = new Dictionary<AvailableMap, MapLoader>();
 
             Dictionary<string, List<string>> configDirectories = processConfig(Path.Combine(Directory.GetCurrentDirectory(), "MapLoaderConfig.json"));
  
@@ -86,10 +102,9 @@ namespace VAM_MapLoader
 
                 if (loaders.ContainsKey(cfKey.Key))
                 {
+                    List<AvailableMap> maps = loaders[cfKey.Key].getAvailableMaps(configDirectories);
 
-                    List<string> maps = loaders[cfKey.Key].getAvailableMaps(configDirectories);
-
-                    foreach (string avMap in maps)
+                    foreach (AvailableMap avMap in maps)
                     {
                         availableMaps.Add(avMap, loaders[cfKey.Key]);
                     }
@@ -113,9 +128,11 @@ namespace VAM_MapLoader
 
         private void onMapLoadComplete(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
-            if (scene.path.Equals(currentLoadedScene))
-            {
+            //if (scene.path.Equals(currentLoadedScene.displayName))
+            if(currentLoader!=null)
+            { 
                 fixLightsInScene();
+                currentLoader.onSceneLoaded(scene, mode);
             }
 
         }
@@ -162,28 +179,26 @@ namespace VAM_MapLoader
 
                 unloadButtonUI.onClick.AddListener(() =>
                 {
-                    if(currentLoader!=null && currentLoadedScene.Length>0)
+                    if(currentLoader!=null && currentLoadedScene!=null)
                     { 
                         currentLoader.unloadMap(currentLoadedScene);
                         currentLoader = null;
-                        currentLoadedScene = "";
+                        currentLoadedScene = null;
                     }
                 });
 
                 GameObject mapLoadContentGO = mapLoadPanelGO.GetComponent<ScrollRect>().content.gameObject;
 
-                foreach (KeyValuePair<string, MapLoader> map in availableMaps)
+                foreach (KeyValuePair<AvailableMap, MapLoader> map in availableMaps)
                 {
                     createMapLoadButton(mapLoadContentGO, map.Key, map.Value);
                 }
 
-
                 mapLoadPanelGO.SetActive(false);
-
             }
         }
 
-        void createMapLoadButton(GameObject mapLoadContentGO, string mapName, MapLoader loader)
+        void createMapLoadButton(GameObject mapLoadContentGO, AvailableMap map, MapLoader loader)
         {
             Transform panelPrefab = getTransformByNameAndRoot("Panel", SuperController.singleton.mainMenuUI);
             Transform buttonPrefab = getTransformByNameAndRoot("Quit Button", SuperController.singleton.mainMenuUI);
@@ -224,17 +239,17 @@ namespace VAM_MapLoader
             mapLoadContentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, mapLoadContentRT.rect.height + mapButtonRT.rect.height);
 
             //Update new components with adjusted values.
-            mapLoadText.text = loader.Mapkey() + " - " + Path.GetFileNameWithoutExtension(mapName);
-
+            mapLoadText.text = loader.Mapkey() + " - " + map.displayName;
 
             mapLoadButtonUI.onClick.AddListener(() =>
             {
+               
+                if (currentLoadedScene!=null)
+                {            
+                    currentLoader.unloadMap(currentLoadedScene);                                        
+                }
 
-                if (currentLoadedScene.Length > 0)
-                    currentLoader.unloadMap(currentLoadedScene);
-
-
-                currentLoadedScene = loader.loadMap(mapName);
+                currentLoadedScene = loader.loadMap(map);
                 currentLoader = loader;
 
             });
@@ -368,8 +383,6 @@ namespace VAM_MapLoader
             return scrollRect;
         }
 
-
-
         Button createMenuButton(string text)
         {
 
@@ -488,12 +501,28 @@ namespace VAM_MapLoader
 
             for (int i = 0; i < mrs.Length; i++)
             {
-
                 if (mrs[i].name.Equals(name_))
                     return mrs[i];
             }
 
             return null;
+        }
+
+        public static AssetBundle getBundle(string bundlePath)
+        {
+            AssetBundle asb = null;
+            try
+            {
+                if (MapLoaderPlugin.bundles.ContainsKey(bundlePath))
+                    asb = MapLoaderPlugin.bundles[bundlePath];
+                else
+                {
+                    asb = AssetBundle.LoadFromFile(bundlePath);
+                    MapLoaderPlugin.bundles.Add(bundlePath, asb);
+                }
+            }
+            catch (Exception ex) { SuperController.LogError("Unable to load asset bundle " + bundlePath); }
+            return asb;
         }
 
     }

@@ -1,7 +1,7 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using UnityEngine.SceneManagement;
+
 
 namespace VAM_MapLoader
 {
@@ -9,8 +9,9 @@ namespace VAM_MapLoader
     {
         string Mapkey();
         void init();
-        string loadMap(string mapName);
-        void unloadMap(string currentLoadedScene);
-        List<string> getAvailableMaps(Dictionary<string, List<string>> configDirectories);
+        AvailableMap loadMap(AvailableMap mapName);
+        void unloadMap(AvailableMap currentLoadedScene);
+        List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories);
+        void onSceneLoaded(Scene scene, LoadSceneMode mode);
     }
 }
