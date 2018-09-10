@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 
 namespace VAM_MapLoader
 {
+    public delegate void MapInitialized(UnityEngine.GameObject mapMain_, AvailableMap amap_);
+
     interface MapLoader
     {
         string Mapkey();
@@ -13,5 +15,6 @@ namespace VAM_MapLoader
         void unloadMap(AvailableMap currentLoadedScene);
         List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories);
         void onSceneLoaded(Scene scene, LoadSceneMode mode);
+        event MapInitialized onMapInit;
     }
 }

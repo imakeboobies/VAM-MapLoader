@@ -15,7 +15,9 @@ namespace VAM_MapLoader
         static string MAPKEY = "Koikatu";
         AssetBundle shaders;
         Dictionary<string, Shader> additionalShaders;
-
+        public event MapInitialized onMapInit;
+        GameObject mapRoot;
+        AvailableMap currentLoadMap;
         public void init()
         {
 
@@ -59,13 +61,13 @@ namespace VAM_MapLoader
             }
 
             mapName.parameters.Add(sceneName);
+            currentLoadMap = mapName;
             return mapName;
         }
 
         public void unloadMap(AvailableMap currentLoadedScene)
         {
-            if(currentLoadedScene.parameters.Count>0)
-              UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene.parameters[0]);
+            GameObject.Destroy(mapRoot);
         }
 
         public List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
@@ -81,7 +83,7 @@ namespace VAM_MapLoader
 
                     foreach (string file in files)
                     {
-                        availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
+                        availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file), MAPKEY));
                     }
                 }
             }
@@ -92,11 +94,14 @@ namespace VAM_MapLoader
         public void onSceneLoaded(Scene arg0, LoadSceneMode arg1)
         {
 
+            mapRoot = new GameObject("mapRoot");
+
             GameObject[] rootObjs = arg0.GetRootGameObjects();
 
-            foreach (GameObject currentMapBase in rootObjs)
+            foreach (GameObject mapGameObject in rootObjs)
             {
-                MeshRenderer[] tt = currentMapBase.GetComponentsInChildren<MeshRenderer>();
+
+                MeshRenderer[] tt = mapGameObject.GetComponentsInChildren<MeshRenderer>();
                 foreach (MeshRenderer at in tt)
                 {
 
@@ -116,7 +121,7 @@ namespace VAM_MapLoader
 
                 }
 
-                SkinnedMeshRenderer[] ttx = currentMapBase.GetComponentsInChildren<SkinnedMeshRenderer>();
+                SkinnedMeshRenderer[] ttx = mapGameObject.GetComponentsInChildren<SkinnedMeshRenderer>();
                 foreach (SkinnedMeshRenderer at in ttx)
                 {
 
@@ -136,7 +141,7 @@ namespace VAM_MapLoader
 
                 }
 
-                SpriteRenderer[] spr = currentMapBase.GetComponentsInChildren<SpriteRenderer>();
+                SpriteRenderer[] spr = mapGameObject.GetComponentsInChildren<SpriteRenderer>();
                 foreach (SpriteRenderer at in spr)
                 {
 
@@ -156,7 +161,7 @@ namespace VAM_MapLoader
 
                 }
 
-                ParticleSystemRenderer[] psr = currentMapBase.GetComponentsInChildren<ParticleSystemRenderer>();
+                ParticleSystemRenderer[] psr = mapGameObject.GetComponentsInChildren<ParticleSystemRenderer>();
                 foreach (ParticleSystemRenderer at in psr)
                 {
 
@@ -178,8 +183,10 @@ namespace VAM_MapLoader
 
                 }
 
+                mapGameObject.transform.SetParent(mapRoot.transform, true);
             }
 
+            onMapInit.Invoke(mapRoot,currentLoadMap);
         }
     }
 }

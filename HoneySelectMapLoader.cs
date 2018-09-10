@@ -8,7 +8,9 @@ namespace VAM_MapLoader
     class HoneySelectMapLoader : MapLoader
     {
         static string MAPKEY = "HoneySelect";
-        static GameObject currentMapBase;              
+        static GameObject currentMapBase;
+
+        public event MapInitialized onMapInit;
 
         public void init()
         {
@@ -25,7 +27,7 @@ namespace VAM_MapLoader
         public AvailableMap loadMap(AvailableMap mapName)
         {
             AssetBundle asb = MapLoaderPlugin.getBundle(mapName.fileName);
-
+         
             //check if there is a materials bundle as well, load it if it exists.           
             string materialBundleName = "mat_etc_" + Path.GetFileName(mapName.fileName);
 
@@ -39,7 +41,7 @@ namespace VAM_MapLoader
                 materialBundle.LoadAllAssets();
             }
 
-            currentMapBase = new GameObject(mapName.displayName);
+            currentMapBase = new GameObject(mapName.displayName);           
 
             if (asb != null && asb.GetAllAssetNames().Length > 0)
             {
@@ -93,7 +95,8 @@ namespace VAM_MapLoader
                         }
    
             }
-
+            
+            onMapInit.Invoke(currentMapBase, mapName);           
             return mapName;
         }
 
@@ -145,7 +148,7 @@ namespace VAM_MapLoader
                                     {
                                         List<string> param = new List<string>();
                                         param.Add(asFile);
-                                        AvailableMap amap = new AvailableMap(file, mapName,param);
+                                        AvailableMap amap = new AvailableMap(file, mapName,MAPKEY, param);
                                         mapParams.Add(mapName, amap);
                                     }
 
@@ -160,7 +163,7 @@ namespace VAM_MapLoader
                                     {
                                         List<string> param = new List<string>();
                                         param.Add(asFile);
-                                        AvailableMap amap = new AvailableMap(file, mapName, param);
+                                        AvailableMap amap = new AvailableMap(file, mapName, MAPKEY, param);
                                         mapParams.Add(mapName, amap);
                                     }
                                 }

@@ -6,6 +6,8 @@ using System.Linq;
 using System;
 using System.IO;
 using SimpleJSON;
+using System.Collections;
+using UnityThreading;
 
 namespace VAM_MapLoader
 {
@@ -14,16 +16,20 @@ namespace VAM_MapLoader
         public string fileName;
         public string displayName;
         public List<string> parameters;
+        public string loaderType;
 
-        public AvailableMap(string fileName_, string displayName_) : this(fileName_, displayName_, new List<string>())
+
+
+        public AvailableMap(string fileName_, string displayName_, string loaderType_) : this(fileName_, displayName_, loaderType_, new List<string>())
         {
-            
+
         }
 
-        public AvailableMap(string fileName_, string displayName_, List<string> parameters_)
+        public AvailableMap(string fileName_, string displayName_, string loaderType_, List<string> parameters_)
         {
             fileName = fileName_;
             displayName = displayName_;
+            loaderType = loaderType_;
             parameters = parameters_;
         }
     }
@@ -31,13 +37,87 @@ namespace VAM_MapLoader
     class MapLoaderPlugin : IPlugin
     {
 
-        AvailableMap currentLoadedScene;// = "";        
+    
+        Atom atomAttach;
+        public AvailableMap currentLoadedScene;// = "";        
         MapLoader currentLoader;
+        MapLoaderControl lm;
 
         public static Dictionary<string, AssetBundle> bundles = new Dictionary<string, AssetBundle>();
         Dictionary<string, MapLoader> loaders;
         Dictionary<AvailableMap, MapLoader> availableMaps;
 
+        public void LoadMap(AvailableMap map, string loaderType)
+        {
+
+            if (loaders.ContainsKey(loaderType.Trim()))
+            {
+
+                MapLoader loader = loaders[loaderType];
+
+                LoadMap(map, loader);
+            }
+        }
+
+        public void LoadMap(AvailableMap map, MapLoader loader)
+        {
+
+            if (currentLoadedScene != null)
+            {
+                currentLoader.unloadMap(currentLoadedScene);
+            }
+
+            currentLoadedScene = loader.loadMap(map);
+            currentLoader = loader;
+
+            if (lm)
+                lm.am = currentLoadedScene;
+        }
+
+        private void onMapLoadComplete(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            if (currentLoader != null)
+            {
+                fixLightsInScene();
+                currentLoader.onSceneLoaded(scene, mode);
+            }
+
+        }
+
+        Dictionary<string, List<string>> processConfig(string configFilePath)
+        {
+
+            Dictionary<string, List<string>> configDirectories = new Dictionary<string, List<string>>();
+            string json = File.ReadAllText(configFilePath);
+            JSONClass jx = (JSONClass)JSONNode.Parse(json);
+            foreach (string tag in jx.Keys)
+            {
+                string directory = Path.GetFullPath(@jx[tag].Value);
+
+                if (configDirectories.ContainsKey(tag))
+                    configDirectories[tag].Add(directory);
+                else
+                    configDirectories.Add(tag, new List<string>(new string[] { directory }));
+            }
+
+            return configDirectories;
+        }
+
+        void OnMapInit(GameObject gom, AvailableMap amp)
+        {
+
+            Atom coreControl = SuperController.singleton.GetComponent<Atom>();
+            lm = coreControl.GetComponent<MapLoaderControl>();
+
+            if (lm.controlAtom != null)
+                gom.transform.SetParent(getTransformByNameAndRoot("object", lm.controlAtom.transform), false);
+
+            if (lm)
+                lm.am = amp;
+
+        }
+
+        #region Iplugin impl
         public string Name
         {
             get
@@ -50,7 +130,7 @@ namespace VAM_MapLoader
         {
             get
             {
-                return "1.2.2";
+                return "1.3";
             }
         }
 
@@ -59,43 +139,27 @@ namespace VAM_MapLoader
 
         }
 
-        Dictionary<string, List<string>> processConfig(string configFilePath)
-        {
-
-            Dictionary<string, List<string>> configDirectories = new Dictionary<string, List<string>>();       
-            string json = File.ReadAllText(configFilePath);
-            JSONClass jx = (JSONClass)JSONNode.Parse(json);
-            foreach(string tag in jx.Keys)
-            {                               
-                string directory = Path.GetFullPath(@jx[tag].Value);
-
-                if (configDirectories.ContainsKey(tag))
-                    configDirectories[tag].Add(directory);
-                else
-                    configDirectories.Add(tag, new List<string>(new string[] { directory }));
-            }
-
-            return configDirectories;
-        }
-
         public void OnApplicationStart()
         {
             loaders = new Dictionary<string, MapLoader>();
             availableMaps = new Dictionary<AvailableMap, MapLoader>();
 
             Dictionary<string, List<string>> configDirectories = processConfig(Path.Combine(Directory.GetCurrentDirectory(), "MapLoaderConfig.json"));
- 
-            foreach (Type mytype in AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(myType => myType.IsClass && !myType.IsAbstract && myType.GetInterfaces().Contains(typeof(MapLoader))))
+
+            foreach (System.Type mytype in AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes()).Where(myType => myType.IsClass && !myType.IsAbstract && myType.GetInterfaces().Contains(typeof(MapLoader))))
             {
                 try
                 {
-                    MapLoader mapLoaderImpl = (MapLoader)Activator.CreateInstance(mytype);                
+                    MapLoader mapLoaderImpl = (MapLoader)Activator.CreateInstance(mytype);
                     mapLoaderImpl.init();
+                    mapLoaderImpl.onMapInit += OnMapInit;
                     loaders.Add(mapLoaderImpl.Mapkey(), mapLoaderImpl);
                 }
-                catch (Exception ex) {
-                    SuperController.LogError("Failed to initialise map loader: "+mytype); }
+                catch (Exception ex)
+                {
+                    SuperController.LogError("Failed to initialise map loader: " + mytype);
                 }
+            }
 
             foreach (KeyValuePair<string, List<string>> cfKey in configDirectories)
             {
@@ -113,6 +177,8 @@ namespace VAM_MapLoader
                     SuperController.LogError("Missing a map loader! " + cfKey.Key); //XXX
             }
 
+
+
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += onMapLoadComplete;
         }
 
@@ -123,26 +189,18 @@ namespace VAM_MapLoader
 
         public void OnLevelWasInitialized(int level)
         {
-
-        }
-
-        private void onMapLoadComplete(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
-        {
-            //if (scene.path.Equals(currentLoadedScene.displayName))
-            if(currentLoader!=null)
-            { 
-                fixLightsInScene();
-                currentLoader.onSceneLoaded(scene, mode);
-            }
-
-        }
-
-        public void OnLevelWasLoaded(int level)
-        {
             //Make sure we're in the main VAM scenes
             if ((level == 1 || level == 6))
             {
 
+                Atom coreControl = SuperController.singleton.GetAtomByUid("CoreControl");
+                lm = coreControl.gameObject.GetComponent<MapLoaderControl>();
+
+                if (!lm)
+                {
+                    lm = coreControl.gameObject.AddComponent<MapLoaderControl>();
+                    coreControl.RegisterAdditionalStorable(lm);
+                }
                 Transform buttonPrefab = getTransformByNameAndRoot("Quit Button", SuperController.singleton.mainMenuUI);
                 Transform HRButtonPrefab = getTransformByNameAndRoot("Hard Reset Button", SuperController.singleton.mainMenuUI);
 
@@ -150,15 +208,15 @@ namespace VAM_MapLoader
                 Button unloadButtonUI = createMenuButton("Unload External Map");
 
                 RectTransform buttonPrefabRT = buttonPrefab.GetComponent<RectTransform>();
-                RectTransform hardResetRT = HRButtonPrefab.GetComponent<RectTransform>();
+                //RectTransform hardResetRT = HRButtonPrefab.GetComponent<RectTransform>();
                 RectTransform mapButtonRT = mapLoadButtonUI.gameObject.GetComponent<RectTransform>();
                 RectTransform unloadButtonRT = unloadButtonUI.gameObject.GetComponent<RectTransform>();
 
-                //Adjust position of buttons to fit into menu.
-                hardResetRT.anchoredPosition = new Vector2(hardResetRT.anchoredPosition.x, hardResetRT.anchoredPosition.y + 40f);
-                buttonPrefabRT.anchoredPosition = new Vector2(buttonPrefabRT.anchoredPosition.x, buttonPrefabRT.anchoredPosition.y - 40f);
-                mapButtonRT.anchoredPosition = new Vector2(mapButtonRT.anchoredPosition.x, mapButtonRT.anchoredPosition.y + mapButtonRT.rect.height+40f);
-                unloadButtonRT.anchoredPosition = new Vector2(unloadButtonRT.anchoredPosition.x, unloadButtonRT.anchoredPosition.y+30f);
+                mapButtonRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, mapButtonRT.rect.width / 2f);
+                mapButtonRT.anchoredPosition = new Vector2(mapButtonRT.anchoredPosition.x - (mapButtonRT.rect.width / 2f), mapButtonRT.anchoredPosition.y + mapButtonRT.rect.height + 80f);
+                unloadButtonRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, unloadButtonRT.rect.width / 2f);
+                unloadButtonRT.anchoredPosition = new Vector2(unloadButtonRT.anchoredPosition.x - (unloadButtonRT.rect.width / 2f), unloadButtonRT.anchoredPosition.y + 70f);
+
 
                 ScrollRect scrollRect = createMapScrollRect();
                 GameObject mapLoadPanelGO = scrollRect.gameObject;
@@ -179,11 +237,12 @@ namespace VAM_MapLoader
 
                 unloadButtonUI.onClick.AddListener(() =>
                 {
-                    if(currentLoader!=null && currentLoadedScene!=null)
-                    { 
+                    if (currentLoader != null && currentLoadedScene != null)
+                    {
                         currentLoader.unloadMap(currentLoadedScene);
                         currentLoader = null;
                         currentLoadedScene = null;
+
                     }
                 });
 
@@ -198,6 +257,43 @@ namespace VAM_MapLoader
             }
         }
 
+        public void OnLevelWasLoaded(int level)
+        {
+
+        }
+
+        public void OnUpdate()
+        {
+
+        }
+        #endregion
+
+        #region Singleton impl
+        private static MapLoaderPlugin instance = null;
+
+        public static MapLoaderPlugin Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    List<IPlugin> plugins = (List<IPlugin>)IllusionInjector.PluginManager.Plugins;
+
+                    foreach (IPlugin plug in plugins)
+                    {
+                        if (plug.GetType().Equals(typeof(MapLoaderPlugin)))
+                        {
+                            instance = (MapLoaderPlugin)plug;
+                        }
+                    }
+
+                }
+                return instance;
+            }
+        }
+        #endregion
+
+        #region UI Creation methods
         void createMapLoadButton(GameObject mapLoadContentGO, AvailableMap map, MapLoader loader)
         {
             Transform panelPrefab = getTransformByNameAndRoot("Panel", SuperController.singleton.mainMenuUI);
@@ -243,15 +339,7 @@ namespace VAM_MapLoader
 
             mapLoadButtonUI.onClick.AddListener(() =>
             {
-               
-                if (currentLoadedScene!=null)
-                {            
-                    currentLoader.unloadMap(currentLoadedScene);                                        
-                }
-
-                currentLoadedScene = loader.loadMap(map);
-                currentLoader = loader;
-
+                LoadMap(map, loader);
             });
         }
 
@@ -344,9 +432,9 @@ namespace VAM_MapLoader
             CopyImageValues(panelImagePrefab, mapLoadImage);
             RectTransform mapLoadPanelRT = mapLoadPanelGO.GetComponent<RectTransform>();
             CopyRectTransformValues(panelPrefabRT, mapLoadPanelRT);
-
+            mapLoadPanelRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, mapLoadPanelRT.rect.width / 2f);
             ScrollRect scrollRect = mapLoadPanelGO.AddComponent<ScrollRect>();
-
+            
             //scrollrect>viewport(mask+image)>content(button*100)
             GameObject mapLoadViewPortGO = new GameObject("MapLoadViewPort");
             mapLoadViewPortGO.transform.localScale = panelPrefab.localScale;
@@ -371,14 +459,14 @@ namespace VAM_MapLoader
 
             RectTransform mapLoadContentRT = mapLoadContentGO.GetComponent<RectTransform>();
             CopyRectTransformValues(panelPrefabRT, mapLoadContentRT);
-            mapLoadContentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 0f);
+            mapLoadContentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 0f);            
             scrollRect.horizontal = false;
 
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
             scrollRect.viewport = mapLoadViewPortGO.GetComponent<RectTransform>();
             scrollRect.content = mapLoadContentGO.GetComponent<RectTransform>();
 
-            mapLoadPanelRT.anchoredPosition = new Vector2(mapLoadPanelRT.anchoredPosition.x + mapLoadPanelRT.rect.width, mapLoadPanelRT.anchoredPosition.y);
+            mapLoadPanelRT.anchoredPosition = new Vector2(mapLoadPanelRT.anchoredPosition.x + (mapLoadPanelRT.rect.width*1.5f), mapLoadPanelRT.anchoredPosition.y);
 
             return scrollRect;
         }
@@ -411,7 +499,7 @@ namespace VAM_MapLoader
             mpliStyle.styleName = style;
             CopyRectTransformValues(buttonPrefabRT, mapButtonRT);
 
-  
+
             //Create new gameobject and ui for button text
             GameObject mapLoadTextGO = new GameObject("MapLoadText");
             mapLoadTextGO.transform.localScale = textPrefab.localScale;
@@ -475,7 +563,9 @@ namespace VAM_MapLoader
             br2.anchoredPosition = br1.anchoredPosition;
             br2.anchoredPosition3D = br1.anchoredPosition3D;
         }
+        #endregion
 
+        #region Utility and Bundle methods
         void fixLightsInScene()
         {
             Light[] lights = GameObject.FindObjectsOfType<Light>();
@@ -487,13 +577,6 @@ namespace VAM_MapLoader
             }
 
         }
-
-
-        public void OnUpdate()
-        {
-
-        }
-
 
         public static Transform getTransformByNameAndRoot(string name_, Transform parent_)
         {
@@ -525,6 +608,21 @@ namespace VAM_MapLoader
             return asb;
         }
 
+        public static void unloadBundle(string bundlePath)
+        {
+            AssetBundle asb = null;
+            try
+            {
+                if (MapLoaderPlugin.bundles.ContainsKey(bundlePath))
+                {
+                    asb = MapLoaderPlugin.bundles[bundlePath];
+                    asb.Unload(false);
+                }
+            }
+            catch (Exception ex) { SuperController.LogError("Unable to unload asset bundle " + bundlePath); }
+
+        }
+        #endregion
     }
 
 

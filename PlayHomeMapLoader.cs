@@ -9,10 +9,10 @@ namespace VAM_MapLoader
     {
         static string MAPKEY = "PlayHome";
         GameObject currentMapBase;
+        public event MapInitialized onMapInit;
 
         public void init()
-        {
-
+        {           
         }
 
         public string Mapkey()
@@ -69,6 +69,8 @@ namespace VAM_MapLoader
                 }
 
             }
+           
+            onMapInit.Invoke(currentMapBase, mapName);
 
             return mapName;
         }
@@ -99,7 +101,7 @@ namespace VAM_MapLoader
 
                             if (extension.Length == 0)
                             {
-                                availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
+                                availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file), MAPKEY));
                             }
 
                         }

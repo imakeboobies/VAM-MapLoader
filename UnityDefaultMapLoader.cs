@@ -10,6 +10,9 @@ namespace VAM_MapLoader
     class UnityDefaultMapLoader : MapLoader
     {
         public static string MAPKEY = "Unity";
+        public event MapInitialized onMapInit;
+        GameObject currentMapBase;
+        AvailableMap currentAvailMapLoad;
 
         public void init()
         {
@@ -37,14 +40,16 @@ namespace VAM_MapLoader
 
             }
             mapName.parameters.Add(sceneName);
-
+            currentAvailMapLoad = mapName;
             return mapName;
         }
 
         public void unloadMap(AvailableMap currentLoadedScene)
         {
-            if (currentLoadedScene.parameters.Count > 0)
-                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene.parameters[0]);
+            GameObject.Destroy(currentMapBase);
+
+        /*    if (currentLoadedScene.parameters.Count > 0)
+                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(currentLoadedScene.parameters[0]);*/
         }
 
         public List<AvailableMap> getAvailableMaps(Dictionary<string, List<string>> configDirectories)
@@ -60,7 +65,7 @@ namespace VAM_MapLoader
                         string[] files = Directory.GetFiles(Path.GetFullPath(directory), "*.scene");
                         foreach (string file in files)
                         {
-                            availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file)));
+                            availableMaps.Add(new AvailableMap(file, Path.GetFileNameWithoutExtension(file), MAPKEY));
                         }
                     }
                 }
@@ -68,6 +73,18 @@ namespace VAM_MapLoader
             return availableMaps;
         }
 
-        public void onSceneLoaded(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.LoadSceneMode arg1) { }
+        public void onSceneLoaded(UnityEngine.SceneManagement.Scene arg0, UnityEngine.SceneManagement.LoadSceneMode arg1)
+        {
+            currentMapBase = new GameObject("mapRoot");
+
+            GameObject[] rootObjs = arg0.GetRootGameObjects();
+
+            foreach (GameObject roots in rootObjs)
+            {
+                roots.transform.SetParent(currentMapBase.transform, true);
+            }
+
+            onMapInit.Invoke(currentMapBase, currentAvailMapLoad);
+        }
     }
 }
